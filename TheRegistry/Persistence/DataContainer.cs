@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using TheRegistry.Model;
+using Windows.Storage.Streams;
 
 namespace TheRegistry.Persistence
 {
@@ -20,18 +21,19 @@ namespace TheRegistry.Persistence
             DataContainer lInstance;
 
             var folder = Windows.Storage.ApplicationData.Current.LocalFolder;
-            
+
             //if (File.Exists("data.xml"))
             try
             {
                 var deserializer = new XmlSerializer(typeof(DataContainer));
-                var task = folder.OpenStreamForReadAsync("data.xml");
-                task.RunSynchronously();                
-                
+                var task = folder.OpenStreamForReadAsync("ms-appdata:///local/data.xml");
+                //task.RunSynchronously();                
+                task.Wait();
+
                 //File.OpenRead
                 using (var fstream = task.Result)
                 {
-                    lInstance =(DataContainer)deserializer.Deserialize(fstream);
+                    lInstance = (DataContainer)deserializer.Deserialize(fstream);
                 }
             }
             catch (FileNotFoundException fnfex)
@@ -51,6 +53,16 @@ namespace TheRegistry.Persistence
                     TransactionList = new List<Transaction>()
                 };
             }
+            catch (Exception ex) {
+                lInstance = new DataContainer()
+                {
+                    ItemList = new List<Item>(),
+                    StockList = new List<Stock>(),
+                    StoreList = new List<Store>(),
+                    TransactionList = new List<Transaction>()
+                };
+            }
+
             return lInstance;
         }
 
@@ -60,8 +72,21 @@ namespace TheRegistry.Persistence
 
             var folder = Windows.Storage.ApplicationData.Current.LocalFolder;
 
-            var task = folder.OpenStreamForReadAsync("data.xml");
-            task.RunSynchronously();
+            try
+            {
+                IRandomAccessStreamReference thumbnail = RandomAccessStreamReference.CreateFromUri(new Uri("ms-appdata:///local/data.xml"));
+                var taskCreate = Windows.Storage.StorageFile.CreateStreamedFileFromUriAsync("data.xml", new Uri("ms-appdata:///local/data.xml"), thumbnail).AsTask();
+                taskCreate.Wait();
+            }
+            catch (Exception ex) {
+            }
+
+            var taskFile = Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appdata:///local/data.xml")).AsTask(); //folder.GetFileAsync("ms-appdata:///data.xml").AsTask();
+            taskFile.Wait();
+
+
+            var task = taskFile.Result.OpenStreamForWriteAsync(); // folder.OpenStreamForWriteAsync("ms-appdata:///local/data.xml", Windows.Storage.CreationCollisionOption.ReplaceExisting);
+            task.Wait();
 
             using(var fstream = task.Result)
             {
