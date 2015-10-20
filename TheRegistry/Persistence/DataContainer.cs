@@ -26,9 +26,15 @@ namespace TheRegistry.Persistence
             try
             {
                 var deserializer = new XmlSerializer(typeof(DataContainer));
-                var task = folder.OpenStreamForReadAsync("ms-appdata:///local/data.xml");
-                //task.RunSynchronously();                
-                task.Wait();
+
+                var taskFile = Windows.Storage.ApplicationData.Current.LocalFolder.CreateFileAsync("data.xml", Windows.Storage.CreationCollisionOption.OpenIfExists).AsTask();
+                taskFile.Wait();
+
+                var task = taskFile.Result.OpenStreamForReadAsync();
+
+                //var task = folder.OpenStreamForReadAsync("ms-appdata:///local/data.xml");
+                ////task.RunSynchronously();                
+                //task.Wait();
 
                 //File.OpenRead
                 using (var fstream = task.Result)
@@ -67,30 +73,42 @@ namespace TheRegistry.Persistence
         }
 
         private void save() {
-            var serializer = new XmlSerializer(typeof(DataContainer));
-            //using (var fstream = File.OpenWrite("data.xml"))
+            try {
+                var serializer = new XmlSerializer(typeof(DataContainer));
+                //using (var fstream = File.OpenWrite("data.xml"))
 
-            var folder = Windows.Storage.ApplicationData.Current.LocalFolder;
+                var taskFile = Windows.Storage.ApplicationData.Current.LocalFolder.CreateFileAsync("data.xml", Windows.Storage.CreationCollisionOption.ReplaceExisting).AsTask();
+                taskFile.Wait();
 
-            try
-            {
-                IRandomAccessStreamReference thumbnail = RandomAccessStreamReference.CreateFromUri(new Uri("ms-appdata:///local/data.xml"));
-                var taskCreate = Windows.Storage.StorageFile.CreateStreamedFileFromUriAsync("data.xml", new Uri("ms-appdata:///local/data.xml"), thumbnail).AsTask();
-                taskCreate.Wait();
+                //var folder = Windows.Storage.ApplicationData.Current.LocalFolder;
+
+                //string urlStr = "ms-appdata:///local/data.xml";
+                //Uri uriObj = new Uri(urlStr);
+
+                //try
+                //{
+                //    IRandomAccessStreamReference thumbnail = RandomAccessStreamReference.CreateFromUri(uriObj);
+                //    var taskCreate = Windows.Storage.StorageFile.CreateStreamedFileFromUriAsync("/data.xml", uriObj, thumbnail).AsTask();
+                //    taskCreate.Wait();
+                //}
+                //catch (Exception ex) {
+                //}
+
+                //var taskFile = Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(uriObj).AsTask(); //folder.GetFileAsync("ms-appdata:///data.xml").AsTask();
+                //taskFile.Wait();
+
+
+                var task = taskFile.Result.OpenStreamForWriteAsync(); // folder.OpenStreamForWriteAsync("ms-appdata:///local/data.xml", Windows.Storage.CreationCollisionOption.ReplaceExisting);
+                task.Wait();
+
+                using (var fstream = task.Result)
+                {
+                    serializer.Serialize(fstream, this);
+                }
             }
-            catch (Exception ex) {
-            }
-
-            var taskFile = Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appdata:///local/data.xml")).AsTask(); //folder.GetFileAsync("ms-appdata:///data.xml").AsTask();
-            taskFile.Wait();
-
-
-            var task = taskFile.Result.OpenStreamForWriteAsync(); // folder.OpenStreamForWriteAsync("ms-appdata:///local/data.xml", Windows.Storage.CreationCollisionOption.ReplaceExisting);
-            task.Wait();
-
-            using(var fstream = task.Result)
+            catch (Exception ex)
             {
-                serializer.Serialize(fstream, this);
+                System.Diagnostics.Debug.WriteLine(ex.Message);
             }
         }
 
